@@ -1396,8 +1396,21 @@ func Convert_v1_VirtualMachineInstance_To_api_Domain(vmi *v1.VirtualMachineInsta
 		}
 	}
 
-	if domain.Spec.Memory, err = vcpu.QuantityToByte(*vcpu.GetVirtualMemory(vmi)); err != nil {
-		return err
+	vmiMemory := vmi.Spec.Domain.Memory
+	if vmiMemory != nil && vmiMemory.Guest != nil && vmiMemory.MaxMemory != nil {
+		domain.Spec.CurrentMemory, err = vcpu.QuantityToCurrentMemory(*vmiMemory.Guest)
+		if err != nil {
+			return err
+		}
+		domain.Spec.Memory, err = vcpu.QuantityToByte(*vmiMemory.MaxMemory)
+		if err != nil {
+			return err
+		}
+	} else {
+		domain.Spec.Memory, err = vcpu.QuantityToByte(*vcpu.GetVirtualMemory(vmi))
+		if err != nil {
+			return err
+		}
 	}
 
 	var isMemfdRequired = false

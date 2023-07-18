@@ -90,13 +90,14 @@ import (
 )
 
 const (
-	failedSyncGuestTime                       = "failed to sync guest time"
-	failedGetDomain                           = "Getting the domain failed."
-	failedGetDomainState                      = "Getting the domain state failed."
-	failedDomainMemoryDump                    = "Domain memory dump failed"
-	affectDeviceLiveAndConfigLibvirtFlags     = libvirt.DOMAIN_DEVICE_MODIFY_LIVE | libvirt.DOMAIN_DEVICE_MODIFY_CONFIG
-	affectDomainLiveAndConfigLibvirtFlags     = libvirt.DOMAIN_AFFECT_LIVE | libvirt.DOMAIN_AFFECT_CONFIG
-	affectDomainVCPULiveAndConfigLibvirtFlags = libvirt.DOMAIN_VCPU_LIVE | libvirt.DOMAIN_VCPU_CONFIG
+	failedSyncGuestTime                         = "failed to sync guest time"
+	failedGetDomain                             = "Getting the domain failed."
+	failedGetDomainState                        = "Getting the domain state failed."
+	failedDomainMemoryDump                      = "Domain memory dump failed"
+	affectDeviceLiveAndConfigLibvirtFlags       = libvirt.DOMAIN_DEVICE_MODIFY_LIVE | libvirt.DOMAIN_DEVICE_MODIFY_CONFIG
+	affectDomainLiveAndConfigLibvirtFlags       = libvirt.DOMAIN_AFFECT_LIVE | libvirt.DOMAIN_AFFECT_CONFIG
+	affectDomainVCPULiveAndConfigLibvirtFlags   = libvirt.DOMAIN_VCPU_LIVE | libvirt.DOMAIN_VCPU_CONFIG
+	affectDomainMemoryLiveAndConfigLibvirtFlags = libvirt.DOMAIN_MEM_LIVE | libvirt.DOMAIN_MEM_CONFIG
 )
 
 const maxConcurrentHotplugHostDevices = 1
@@ -138,6 +139,7 @@ type DomainManager interface {
 	GetSEVInfo() (*v1.SEVPlatformInfo, error)
 	GetLaunchMeasurement(*v1.VirtualMachineInstance) (*v1.SEVMeasurementInfo, error)
 	InjectLaunchSecret(*v1.VirtualMachineInstance, *v1.SEVSecretOptions) error
+	UpdateMemory(vmi *v1.VirtualMachineInstance, options *cmdv1.VirtualMachineOptions) error
 }
 
 type LibvirtDomainManager struct {
@@ -446,6 +448,30 @@ func (l *LibvirtDomainManager) UpdateVCPUs(vmi *v1.VirtualMachineInstance, optio
 		}
 
 	}
+	return nil
+}
+
+// UpdateMemory plugs or unplugs memory on a running domain
+func (l *LibvirtDomainManager) UpdateMemory(vmi *v1.VirtualMachineInstance, options *cmdv1.VirtualMachineOptions) error {
+	l.domainModifyLock.Lock()
+	defer l.domainModifyLock.Unlock()
+
+	memory, _ := vcpu.QuantityToByte(*vmi.Spec.Domain.Memory.Guest)
+	errMsgPrefix := fmt.Sprintf("%s %d", "failed to update memory to", uint64(memory.Value/uint64(1024)))
+
+	domainName := api.VMINamespaceKeyFunc(vmi)
+	dom, err := l.virConn.LookupDomainByName(domainName)
+	if err != nil {
+		return fmt.Errorf("%s: %v", errMsgPrefix, err)
+	}
+	defer dom.Free()
+
+	// hot plug/unplug memory
+	if err := dom.SetMemoryFlags(uint64(memory.Value/uint64(1024)),
+		affectDomainMemoryLiveAndConfigLibvirtFlags); err != nil {
+		return fmt.Errorf("%s: %v", errMsgPrefix, err)
+	}
+
 	return nil
 }
 

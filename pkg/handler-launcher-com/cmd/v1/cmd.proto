@@ -33,6 +33,7 @@ service Cmd {
   rpc GetSEVInfo(EmptyRequest) returns (SEVInfoResponse) {}
   rpc GetLaunchMeasurement(VMIRequest) returns (LaunchMeasurementResponse) {}
   rpc InjectLaunchSecret(InjectLaunchSecretRequest) returns (Response) {}
+  rpc SyncVirtualMachineMemory(VMIRequest) returns (Response) {}
 }
 
 message QemuVersionResponse {

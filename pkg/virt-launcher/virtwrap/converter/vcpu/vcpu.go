@@ -342,6 +342,21 @@ func QuantityToByte(quantity resource.Quantity) (api.Memory, error) {
 	}, nil
 }
 
+func QuantityToCurrentMemory(quantity resource.Quantity) (api.CurrentMemory, error) {
+	memorySize, isInt := quantity.AsInt64()
+	if !isInt {
+		memorySize = quantity.Value() - 1
+	}
+
+	if memorySize < 0 {
+		return api.CurrentMemory{Unit: "b"}, fmt.Errorf("Memory size '%s' must be greater than or equal to 0", quantity.String())
+	}
+	return api.CurrentMemory{
+		Value: uint64(memorySize),
+		Unit:  "b",
+	}, nil
+}
+
 func QuantityToMebiByte(quantity resource.Quantity) (uint64, error) {
 	bytes, err := QuantityToByte(quantity)
 	if err != nil {
@@ -535,6 +550,14 @@ func GetVirtualMemory(vmi *v12.VirtualMachineInstance) *resource.Quantity {
 
 	// Otherwise, take memory from the requested memory
 	return &reqMemory
+}
+
+func GetMaxMemory(vmi *v12.VirtualMachineInstance) *resource.Quantity {
+	if vmi.Spec.Domain.Memory != nil && vmi.Spec.Domain.Memory.MaxMemory != nil {
+		return vmi.Spec.Domain.Memory.MaxMemory
+	}
+
+	return nil
 }
 
 // numaMapping maps numa nodes based on already applied VCPU pinning. The sort result is stable compared to the order

@@ -413,6 +413,14 @@ func ValidateVirtualMachineSpec(field *k8sfield.Path, spec *v1.VirtualMachineSpe
 		})
 	}
 
+	if spec.Template.Spec.Domain.Memory != nil && spec.Template.Spec.Domain.Memory.MaxMemory != nil {
+		causes = append(causes, metav1.StatusCause{
+			Type:    metav1.CauseTypeFieldValueNotSupported,
+			Message: fmt.Sprintf("maxMemory cannot be set directy in VM template"),
+			Field:   field.Child("template.spec.domain.memory.maxMemory").String(),
+		})
+	}
+
 	if spec.LiveUpdateFeatures != nil && spec.LiveUpdateFeatures.CPU != nil {
 		if spec.Instancetype != nil {
 			causes = append(causes, metav1.StatusCause{
@@ -438,6 +446,36 @@ func ValidateVirtualMachineSpec(field *k8sfield.Path, spec *v1.VirtualMachineSpe
 			causes = append(causes, metav1.StatusCause{
 				Type:    metav1.CauseTypeFieldValueInvalid,
 				Message: fmt.Sprintf("Configuration of CPU resource requirements is not allowed when CPU live update is enabled"),
+				Field:   field.Child("liveUpdateFeatures").String(),
+			})
+		}
+	}
+
+	if spec.LiveUpdateFeatures != nil && spec.LiveUpdateFeatures.Memory != nil {
+		if spec.Instancetype != nil {
+			causes = append(causes, metav1.StatusCause{
+				Type:    metav1.CauseTypeFieldValueNotSupported,
+				Message: fmt.Sprintf("Live update features cannot be used when instance type is configured"),
+				Field:   field.Child("liveUpdateFeatures").String(),
+			})
+		}
+
+		if spec.Template.Spec.Domain.Memory.Guest != nil {
+			if spec.LiveUpdateFeatures.Memory.MaxMemory != nil {
+				if spec.Template.Spec.Domain.Memory.Guest.Value() > spec.LiveUpdateFeatures.Memory.MaxMemory.Value() {
+					causes = append(causes, metav1.StatusCause{
+						Type:    metav1.CauseTypeFieldValueInvalid,
+						Message: fmt.Sprintf("Memory is greater than the maximum memory allowed"),
+						Field:   field.Child("liveUpdateFeatures").String(),
+					})
+				}
+			}
+		}
+
+		if hasMemoryRequestsOrLimits(&spec.Template.Spec.Domain.Resources) {
+			causes = append(causes, metav1.StatusCause{
+				Type:    metav1.CauseTypeFieldValueInvalid,
+				Message: fmt.Sprintf("Configuration of Memory resource requirements is not allowed when Memory live update is enabled"),
 				Field:   field.Child("liveUpdateFeatures").String(),
 			})
 		}
@@ -698,6 +736,23 @@ func (admitter *VMsAdmitter) validateVMUpdate(oldVM, newVM *v1.VirtualMachine) [
 				}
 			}
 		}
+
+		if newVM.Spec.LiveUpdateFeatures != nil && newVM.Spec.LiveUpdateFeatures.Memory != nil {
+			oldMemory := oldVM.Spec.Template.Spec.Domain.Memory
+			newMemory := newVM.Spec.Template.Spec.Domain.Memory
+			if oldMemory != nil && oldMemory.Guest != nil && newMemory != nil && newMemory.Guest != nil {
+				if oldMemory.Guest.Value() != newMemory.Guest.Value() {
+					if causeErr := admitter.shouldAllowMemoryHotPlug(oldVM); causeErr != nil {
+						return []metav1.StatusCause{{
+							Type:    metav1.CauseTypeFieldValueNotSupported,
+							Message: causeErr.Error(),
+							Field:   k8sfield.NewPath("spec.template.spec.domain.memory.guest").String(),
+						}}
+					}
+
+				}
+			}
+		}
 	}
 
 	return nil
@@ -729,11 +784,48 @@ func (admitter *VMsAdmitter) shouldAllowCPUHotPlug(vm *v1.VirtualMachine) error 
 	return nil
 }
 
+func (admitter *VMsAdmitter) shouldAllowMemoryHotPlug(vm *v1.VirtualMachine) error {
+	vmi, err := admitter.VirtClient.VirtualMachineInstance(vm.Namespace).Get(context.Background(), vm.Name, &metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, c := range vmi.Status.Conditions {
+		if c.Type == v1.VirtualMachineInstanceMemoryChange &&
+			c.Status == k8sv1.ConditionTrue {
+			return fmt.Errorf("cannot update memory while another memory change is in progress")
+		}
+	}
+
+	// Is migration in progress
+	if vmi.Status.MigrationState != nil &&
+		!vmi.Status.MigrationState.Completed {
+		return fmt.Errorf("cannot update memory while VMI migration is in progress")
+	}
+
+	err = EnsureNoMigrationConflict(admitter.VirtClient, vm.Name, vm.Namespace)
+	if err != nil {
+		return fmt.Errorf("cannot update memory while VMI migration is in progress: %v", err)
+	}
+	return nil
+}
+
 func hasCPURequestsOrLimits(rr *v1.ResourceRequirements) bool {
 	if _, ok := rr.Requests[corev1.ResourceCPU]; ok {
 		return true
 	}
 	if _, ok := rr.Limits[corev1.ResourceCPU]; ok {
+		return true
+	}
+
+	return false
+}
+
+func hasMemoryRequestsOrLimits(rr *v1.ResourceRequirements) bool {
+	//if _, ok := rr.Requests[corev1.ResourceMemory]; ok {
+	//	return true
+	//}
+	if _, ok := rr.Limits[corev1.ResourceMemory]; ok {
 		return true
 	}
 

@@ -920,7 +920,8 @@ func (PreferenceMatcher) SwaggerDoc() map[string]string {
 
 func (LiveUpdateFeatures) SwaggerDoc() map[string]string {
 	return map[string]string{
-		"cpu": "LiveUpdateCPU holds hotplug configuration for the CPU resource.\nEmpty struct indicates that default will be used for maxSockets.\nDefault is specified on cluster level.\nAbsence of the struct means opt-out from CPU hotplug functionality.",
+		"cpu":    "LiveUpdateCPU holds hotplug configuration for the CPU resource.\nEmpty struct indicates that default will be used for maxSockets.\nDefault is specified on cluster level.\nAbsence of the struct means opt-out from CPU hotplug functionality.",
+		"memory": "LiveUpdateMemory holds hotplug configuration for the Memory resource.\nEmpty struct indicates that default will be used for maxMemory.\nDefault is specified on cluster level.\nAbsence of the struct means opt-out from Memory hotplug functionality.",
 	}
 }
 
@@ -930,9 +931,16 @@ func (LiveUpdateCPU) SwaggerDoc() map[string]string {
 	}
 }
 
+func (LiveUpdateMemory) SwaggerDoc() map[string]string {
+	return map[string]string{
+		"maxMemory": "The maximum amount of memory that can be hot-plugged to the Virtual Machine",
+	}
+}
+
 func (LiveUpdateConfiguration) SwaggerDoc() map[string]string {
 	return map[string]string{
 		"maxCpuSockets": "MaxCpuSockets holds the maximum amount of sockets that can be hotplugged",
+		"maxMemory":     "MaxMemory holds the maximum amount of memory that can be hotplugged",
 	}
 }
 

@@ -728,6 +728,10 @@ func (c *VMIController) updateStatus(vmi *virtv1.VirtualMachineInstance, pod *k8
 			c.syncCPUHotplug(vmiCopy)
 		}
 
+		if c.requireMemoryHotplug(vmiCopy) {
+			c.syncMemoryHotplug(vmiCopy)
+		}
+
 	case vmi.IsScheduled():
 		// Nothing here
 		break
@@ -2358,4 +2362,27 @@ func (c *VMIController) requireCPUHotplug(vmi *virtv1.VirtualMachineInstance) bo
 	}
 
 	return hardware.GetNumberOfVCPUs(vmi.Spec.Domain.CPU) != hardware.GetNumberOfVCPUs(cpuTopoLogyFromStatus)
+}
+
+func (c *VMIController) syncMemoryHotplug(vmi *virtv1.VirtualMachineInstance) {
+	vmiConditions := controller.NewVirtualMachineInstanceConditionManager()
+	condition := virtv1.VirtualMachineInstanceCondition{
+		Type:   virtv1.VirtualMachineInstanceMemoryChange,
+		Status: k8sv1.ConditionTrue,
+	}
+	if !vmiConditions.HasCondition(vmi, condition.Type) {
+		vmiConditions.UpdateCondition(vmi, &condition)
+		log.Log.Object(vmi).V(4).Infof("hot plug memory vmi %s", vmi.Name)
+	}
+
+}
+
+func (c *VMIController) requireMemoryHotplug(vmi *virtv1.VirtualMachineInstance) bool {
+	if vmi.Status.CurrentMemory == nil ||
+		vmi.Spec.Domain.Memory == nil ||
+		vmi.Spec.Domain.Memory.MaxMemory == nil {
+		return false
+	}
+
+	return vmi.Spec.Domain.Memory.Guest.Value() != vmi.Status.CurrentMemory.Value()
 }

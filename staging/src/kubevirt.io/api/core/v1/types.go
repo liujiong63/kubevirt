@@ -279,7 +279,8 @@ type VirtualMachineInstanceStatus struct {
 	// CurrentCPUTopology specifies the current CPU topology used by the VM workload.
 	// Current topology may differ from the desired topology in the spec while CPU hotplug
 	// takes place.
-	CurrentCPUTopology *CPUTopology `json:"currentCPUTopology,omitempty"`
+	CurrentCPUTopology *CPUTopology       `json:"currentCPUTopology,omitempty"`
+	CurrentMemory      *resource.Quantity `json:"currentMemory,omitempty"`
 }
 
 // PersistentVolumeClaimInfo contains the relavant information virt-handler needs cached about a PVC
@@ -517,6 +518,8 @@ const (
 	VirtualMachineInstanceReasonPRNotMigratable = "PersistentReservationNotLiveMigratable"
 	// Indicates that the VMI is in progress of Hot vCPU Plug/UnPlug
 	VirtualMachineInstanceVCPUChange = "HotVCPUChange"
+	// Indicates that the VMI is in progress of Hot memory Plug/UnPlug
+	VirtualMachineInstanceMemoryChange = "HotMemoryChange"
 )
 
 const (
@@ -2751,6 +2754,11 @@ type LiveUpdateFeatures struct {
 	// Default is specified on cluster level.
 	// Absence of the struct means opt-out from CPU hotplug functionality.
 	CPU *LiveUpdateCPU `json:"cpu,omitempty" optional:"true"`
+	// LiveUpdateMemory holds hotplug configuration for the Memory resource.
+	// Empty struct indicates that default will be used for maxMemory.
+	// Default is specified on cluster level.
+	// Absence of the struct means opt-out from Memory hotplug functionality.
+	Memory *LiveUpdateMemory `json:"memory,omitempty" optional:"true"`
 }
 
 type LiveUpdateCPU struct {
@@ -2758,9 +2766,16 @@ type LiveUpdateCPU struct {
 	MaxSockets *uint32 `json:"maxSockets,omitempty" optional:"true"`
 }
 
+type LiveUpdateMemory struct {
+	// The maximum amount of memory that can be hot-plugged to the Virtual Machine
+	MaxMemory *resource.Quantity `json:"maxMemory,omitempty" optional:"true"`
+}
+
 type LiveUpdateConfiguration struct {
 	// MaxCpuSockets holds the maximum amount of sockets that can be hotplugged
 	MaxCpuSockets *uint32 `json:"maxCpuSockets,omitempty"`
+	// MaxMemory holds the maximum amount of memory that can be hotplugged
+	MaxMemory *resource.Quantity `json:"maxMemory,omitempty"`
 }
 
 // SEVPlatformInfo contains information about the AMD SEV features for the node.

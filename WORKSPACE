@@ -270,10 +270,17 @@ load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
 container_deps()
 
 # Pull go_image_base
+#container_pull(
+#    name = "go_image_base",
+#    digest = "sha256:839543093a9b27ac281cb9ae15f0272a410001b66720a4884068d74dfcaa7125",
+#    registry = "gcr.io",
+#    repository = "distroless/base",
+#)
+
 container_pull(
     name = "go_image_base",
-    digest = "sha256:839543093a9b27ac281cb9ae15f0272a410001b66720a4884068d74dfcaa7125",
-    registry = "gcr.io",
+    digest = "sha256:99f17e37674301fee6065262cfa894d187d3771d0e99f6c1b6c5be095cf11d4e",
+    registry = "gcr.lank8s.cn",
     repository = "distroless/base",
 )
 

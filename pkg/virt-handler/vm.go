@@ -3276,6 +3276,11 @@ func (d *VirtualMachineController) finalizeMigration(vmi *v1.VirtualMachineInsta
 		d.recorder.Event(vmi, k8sv1.EventTypeWarning, err.Error(), "failed to change vCPUs")
 	}
 
+	if err := d.hotplugMemory(vmi, client); err != nil {
+		log.Log.Object(vmi).Reason(err).Error(errorMessage)
+		d.recorder.Event(vmi, k8sv1.EventTypeWarning, err.Error(), "failed to change memory")
+	}
+
 	if err := client.FinalizeVirtualMachineMigration(vmi); err != nil {
 		log.Log.Object(vmi).Reason(err).Error(errorMessage)
 		return fmt.Errorf("%s: %v", errorMessage, err)
@@ -3436,6 +3441,35 @@ func (d *VirtualMachineController) hotplugCPU(vmi *v1.VirtualMachineInstance, cl
 	vmi.Status.CurrentCPUTopology.Sockets = vmi.Spec.Domain.CPU.Sockets
 	vmi.Status.CurrentCPUTopology.Cores = vmi.Spec.Domain.CPU.Cores
 	vmi.Status.CurrentCPUTopology.Threads = vmi.Spec.Domain.CPU.Threads
+
+	return nil
+}
+
+func (d *VirtualMachineController) hotplugMemory(vmi *v1.VirtualMachineInstance, client cmdclient.LauncherClient) error {
+	vmiConditions := controller.NewVirtualMachineInstanceConditionManager()
+
+	removeVMIMemoryChangeConditionAndLabel := func() {
+		vmiConditions.RemoveCondition(vmi, v1.VirtualMachineInstanceMemoryChange)
+	}
+	defer removeVMIMemoryChangeConditionAndLabel()
+
+	if !vmiConditions.HasCondition(vmi, v1.VirtualMachineInstanceMemoryChange) {
+		return nil
+	}
+
+	options := virtualMachineOptions(
+		nil,
+		0,
+		nil,
+		d.capabilities,
+		nil,
+		d.clusterConfig)
+
+	if err := client.SyncVirtualMachineMemory(vmi, options); err != nil {
+		return err
+	}
+
+	vmi.Status.CurrentMemory = vmi.Spec.Domain.Memory.Guest
 
 	return nil
 }

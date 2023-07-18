@@ -338,3 +338,13 @@ func (_m *MockDomainManager) InjectLaunchSecret(_param0 *v1.VirtualMachineInstan
 func (_mr *_MockDomainManagerRecorder) InjectLaunchSecret(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "InjectLaunchSecret", arg0, arg1)
 }
+
+func (_m *MockDomainManager) UpdateMemory(vmi *v1.VirtualMachineInstance, options *v10.VirtualMachineOptions) error {
+	ret := _m.ctrl.Call(_m, "UpdateMemory", vmi, options)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockDomainManagerRecorder) UpdateMemory(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateMemory", arg0, arg1)
+}

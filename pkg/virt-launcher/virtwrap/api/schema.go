@@ -194,6 +194,7 @@ type DomainSpec struct {
 	Name           string          `xml:"name"`
 	UUID           string          `xml:"uuid,omitempty"`
 	Memory         Memory          `xml:"memory"`
+	CurrentMemory  CurrentMemory   `xml:"currentMemory"`
 	MemoryBacking  *MemoryBacking  `xml:"memoryBacking,omitempty"`
 	OS             OS              `xml:"os"`
 	SysInfo        *SysInfo        `xml:"sysinfo,omitempty"`
@@ -419,6 +420,11 @@ type Resource struct {
 }
 
 type Memory struct {
+	Value uint64 `xml:",chardata"`
+	Unit  string `xml:"unit,attr"`
+}
+
+type CurrentMemory struct {
 	Value uint64 `xml:",chardata"`
 	Unit  string `xml:"unit,attr"`
 }

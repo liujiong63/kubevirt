@@ -372,7 +372,8 @@ type Memory struct {
 	// The Guest must lie between Requests and Limits from the resources section.
 	// Defaults to the requested memory in the resources section if not specified.
 	// + optional
-	Guest *resource.Quantity `json:"guest,omitempty"`
+	Guest     *resource.Quantity `json:"guest,omitempty"`
+	MaxMemory *resource.Quantity `json:"maxMemory,omitempty"`
 }
 
 // Hugepages allow to use hugepages for the VirtualMachineInstance instead of regular memory.

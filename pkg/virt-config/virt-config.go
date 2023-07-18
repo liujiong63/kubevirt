@@ -440,3 +440,12 @@ func (c *ClusterConfig) GetMaximumCpuSockets() (numOfSockets uint32) {
 
 	return
 }
+
+func (c *ClusterConfig) GetMaximumMemory() (maxMemory *resource.Quantity) {
+	liveConfig := c.GetConfig().LiveUpdateConfiguration
+	if liveConfig != nil && liveConfig.MaxMemory != nil {
+		maxMemory = liveConfig.MaxMemory
+	}
+
+	return
+}

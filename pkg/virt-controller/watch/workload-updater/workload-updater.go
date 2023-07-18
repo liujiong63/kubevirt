@@ -218,7 +218,7 @@ func (c *WorkloadUpdateController) updateVmi(_, obj interface{}) {
 		return
 	}
 
-	if !condManager.HasCondition(vmi, virtv1.VirtualMachineInstanceVCPUChange) || migrationutils.IsMigrating(vmi) {
+	if (!condManager.HasCondition(vmi, virtv1.VirtualMachineInstanceVCPUChange) && !condManager.HasCondition(vmi, virtv1.VirtualMachineInstanceMemoryChange)) || migrationutils.IsMigrating(vmi) {
 		return
 	}
 
@@ -321,7 +321,7 @@ func (c *WorkloadUpdateController) doesRequireMigration(vmi *virtv1.VirtualMachi
 	if vmi.IsFinal() {
 		return false
 	}
-	if condManager.HasCondition(vmi, virtv1.VirtualMachineInstanceVCPUChange) && !migrationutils.IsMigrating(vmi) {
+	if (condManager.HasCondition(vmi, virtv1.VirtualMachineInstanceVCPUChange) || condManager.HasCondition(vmi, virtv1.VirtualMachineInstanceMemoryChange)) && !migrationutils.IsMigrating(vmi) {
 		return true
 	}
 

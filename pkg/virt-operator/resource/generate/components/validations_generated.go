@@ -1062,6 +1062,14 @@ var CRDsValidation map[string]string = map[string]string{
                     can be hotplugged
                   format: int32
                   type: integer
+                maxMemory:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  description: MaxMemory holds the maximum amount of memory that can
+                    be hotplugged
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
               type: object
             machineType:
               type: string
@@ -4263,6 +4271,21 @@ var CRDsValidation map[string]string = map[string]string{
                   format: int32
                   type: integer
               type: object
+            memory:
+              description: LiveUpdateMemory holds hotplug configuration for the Memory
+                resource. Empty struct indicates that default will be used for maxMemory.
+                Default is specified on cluster level. Absence of the struct means
+                opt-out from Memory hotplug functionality.
+              properties:
+                maxMemory:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  description: The maximum amount of memory that can be hot-plugged
+                    to the Virtual Machine
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+              type: object
           type: object
         preference:
           description: PreferenceMatcher references a set of preference that is used
@@ -6328,6 +6351,12 @@ var CRDsValidation map[string]string = map[string]string{
                                 x86_64 architecture valid values are 1Gi and 2Mi.
                               type: string
                           type: object
+                        maxMemory:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
                       type: object
                     resources:
                       description: Resources describes the Compute Resources required
@@ -10793,6 +10822,12 @@ var CRDsValidation map[string]string = map[string]string{
                         architecture valid values are 1Gi and 2Mi.
                       type: string
                   type: object
+                maxMemory:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
               type: object
             resources:
               description: Resources describes the Compute Resources required by this
@@ -11801,6 +11836,12 @@ var CRDsValidation map[string]string = map[string]string{
               format: int32
               type: integer
           type: object
+        currentMemory:
+          anyOf:
+          - type: integer
+          - type: string
+          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+          x-kubernetes-int-or-string: true
         evacuationNodeName:
           description: EvacuationNodeName is used to track the eviction process of
             a VMI. It stores the name of the node that we want to evacuate. It is
@@ -13454,6 +13495,12 @@ var CRDsValidation map[string]string = map[string]string{
                         architecture valid values are 1Gi and 2Mi.
                       type: string
                   type: object
+                maxMemory:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
               type: object
             resources:
               description: Resources describes the Compute Resources required by this
@@ -15632,6 +15679,12 @@ var CRDsValidation map[string]string = map[string]string{
                                 x86_64 architecture valid values are 1Gi and 2Mi.
                               type: string
                           type: object
+                        maxMemory:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
                       type: object
                     resources:
                       description: Resources describes the Compute Resources required
@@ -17733,6 +17786,21 @@ var CRDsValidation map[string]string = map[string]string{
                             to the Virtual Machine
                           format: int32
                           type: integer
+                      type: object
+                    memory:
+                      description: LiveUpdateMemory holds hotplug configuration for
+                        the Memory resource. Empty struct indicates that default will
+                        be used for maxMemory. Default is specified on cluster level.
+                        Absence of the struct means opt-out from Memory hotplug functionality.
+                      properties:
+                        maxMemory:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          description: The maximum amount of memory that can be hot-plugged
+                            to the Virtual Machine
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
                       type: object
                   type: object
                 preference:
@@ -19960,6 +20028,12 @@ var CRDsValidation map[string]string = map[string]string{
                                         are 1Gi and 2Mi.
                                       type: string
                                   type: object
+                                maxMemory:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
                               type: object
                             resources:
                               description: Resources describes the Compute Resources
@@ -22720,6 +22794,22 @@ var CRDsValidation map[string]string = map[string]string{
                               format: int32
                               type: integer
                           type: object
+                        memory:
+                          description: LiveUpdateMemory holds hotplug configuration
+                            for the Memory resource. Empty struct indicates that default
+                            will be used for maxMemory. Default is specified on cluster
+                            level. Absence of the struct means opt-out from Memory
+                            hotplug functionality.
+                          properties:
+                            maxMemory:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              description: The maximum amount of memory that can be
+                                hot-plugged to the Virtual Machine
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                          type: object
                       type: object
                     preference:
                       description: PreferenceMatcher references a set of preference
@@ -25054,6 +25144,12 @@ var CRDsValidation map[string]string = map[string]string{
                                             are 1Gi and 2Mi.
                                           type: string
                                       type: object
+                                    maxMemory:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
                                   type: object
                                 resources:
                                   description: Resources describes the Compute Resources

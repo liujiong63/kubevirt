@@ -44,6 +44,7 @@ import (
 	k8score "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -107,6 +108,7 @@ const (
 const (
 	HotPlugVolumeErrorReason           = "HotPlugVolumeError"
 	HotPlugCPUErrorReason              = "HotPlugCPUError"
+	HotPlugMemoryErrorReason           = "HotPlugMemoryError"
 	MemoryDumpErrorReason              = "MemoryDumpError"
 	FailedUpdateErrorReason            = "FailedUpdateError"
 	FailedCreateReason                 = "FailedCreate"
@@ -629,6 +631,43 @@ func (c *VMController) handleCPUChangeRequest(vm *virtv1.VirtualMachine, vmi *vi
 
 	if err := c.VMICPUsPatch(vm, vmi); err != nil {
 		log.Log.Object(vmi).Errorf("unable to patch vmi to add cpu topology status: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (c *VMController) handleMemoryChangeRequest(vm *virtv1.VirtualMachine, vmi *virtv1.VirtualMachineInstance) error {
+	if vmi == nil || vmi.DeletionTimestamp != nil {
+		return nil
+	}
+
+	if vm.Spec.LiveUpdateFeatures == nil {
+		return nil
+	}
+
+	if vm.Spec.Template.Spec.Domain.Memory == nil || vmi.Spec.Domain.Memory == nil {
+		return nil
+	}
+
+	vmTemplMemory := vm.Spec.Template.Spec.Domain.Memory.Guest
+	vmiMemory := vmi.Spec.Domain.Memory.Guest
+	if vmTemplMemory.Value() == vmiMemory.Value() {
+		return nil
+	}
+
+	vmiConditions := controller.NewVirtualMachineInstanceConditionManager()
+	if vmiConditions.HasConditionWithStatus(vmi, virtv1.VirtualMachineInstanceMemoryChange, k8score.ConditionTrue) {
+		return fmt.Errorf("another Memory hotplug is in progress")
+	}
+
+	if migrations.IsMigrating(vmi) {
+		return fmt.Errorf("Memory hotplug is not allowed while VMI is migrating")
+	}
+
+	vmi.Spec.Domain.Memory.Guest = vmTemplMemory
+	vmi.Spec.Domain.Resources.Requests[k8score.ResourceMemory] = *vmTemplMemory
+	if _, err := c.clientset.VirtualMachineInstance(vmi.Namespace).Update(context.Background(), vmi); err != nil {
 		return err
 	}
 
@@ -1461,6 +1500,12 @@ func (c *VMController) setupVMIFromVM(vm *virtv1.VirtualMachine) *virtv1.Virtual
 		}
 		if topology.Threads != 0 {
 			vmi.Status.CurrentCPUTopology.Threads = topology.Threads
+		}
+	}
+
+	if memory := vm.Spec.Template.Spec.Domain.Memory; memory != nil {
+		if memory.Guest != nil {
+			vmi.Status.CurrentMemory = memory.Guest
 		}
 	}
 
@@ -2636,6 +2681,11 @@ func (c *VMController) sync(vm *virtv1.VirtualMachine, vmi *virtv1.VirtualMachin
 			syncErr = &syncErrorImpl{fmt.Errorf("Error encountered while handling CPU change request: %v", err), HotPlugCPUErrorReason}
 		}
 
+		err = c.handleMemoryChangeRequest(vmCopy, vmi)
+		if err != nil {
+			syncErr = &syncErrorImpl{fmt.Errorf("Error encountered while handling Memory change request: %v", err), HotPlugMemoryErrorReason}
+		}
+
 		if syncErr == nil {
 			if !equality.Semantic.DeepEqual(vm, vmCopy) {
 				vm, err = c.clientset.VirtualMachine(vmCopy.Namespace).Update(context.Background(), vmCopy)
@@ -2797,6 +2847,7 @@ func (c *VMController) setupLiveFeatures(
 	vmi, VMIDefaults *virtv1.VirtualMachineInstance) {
 	const (
 		maxSocketsRatio = 4
+		maxMemoryRatio  = 4
 	)
 
 	if vm.Spec.LiveUpdateFeatures == nil {
@@ -2807,19 +2858,39 @@ func (c *VMController) setupLiveFeatures(
 		vmi.Spec.Domain.CPU = &virtv1.CPU{}
 	}
 
-	if vm.Spec.LiveUpdateFeatures.CPU.MaxSockets != nil {
-		vmi.Spec.Domain.CPU.MaxSockets = *vm.Spec.LiveUpdateFeatures.CPU.MaxSockets
+	if vmi.Spec.Domain.Memory == nil {
+		vmi.Spec.Domain.Memory = &virtv1.Memory{}
 	}
 
-	if vmi.Spec.Domain.CPU.MaxSockets == 0 {
-		vmi.Spec.Domain.CPU.MaxSockets = c.clusterConfig.GetMaximumCpuSockets()
+	if vm.Spec.LiveUpdateFeatures.CPU != nil {
+		if vm.Spec.LiveUpdateFeatures.CPU.MaxSockets != nil {
+			vmi.Spec.Domain.CPU.MaxSockets = *vm.Spec.LiveUpdateFeatures.CPU.MaxSockets
+		}
+
+		if vmi.Spec.Domain.CPU.MaxSockets == 0 {
+			vmi.Spec.Domain.CPU.MaxSockets = c.clusterConfig.GetMaximumCpuSockets()
+		}
+
+		if vmi.Spec.Domain.CPU.MaxSockets == 0 {
+			vmi.Spec.Domain.CPU.MaxSockets = vmi.Spec.Domain.CPU.Sockets * maxSocketsRatio
+		}
+
+		if vmi.Spec.Domain.CPU.MaxSockets == 0 {
+			vmi.Spec.Domain.CPU.MaxSockets = VMIDefaults.Spec.Domain.CPU.Sockets * maxSocketsRatio
+		}
 	}
 
-	if vmi.Spec.Domain.CPU.MaxSockets == 0 {
-		vmi.Spec.Domain.CPU.MaxSockets = vmi.Spec.Domain.CPU.Sockets * maxSocketsRatio
-	}
+	if vm.Spec.LiveUpdateFeatures.Memory != nil {
+		if vm.Spec.LiveUpdateFeatures.Memory.MaxMemory != nil {
+			vmi.Spec.Domain.Memory.MaxMemory = vm.Spec.LiveUpdateFeatures.Memory.MaxMemory
+		}
 
-	if vmi.Spec.Domain.CPU.MaxSockets == 0 {
-		vmi.Spec.Domain.CPU.MaxSockets = VMIDefaults.Spec.Domain.CPU.Sockets * maxSocketsRatio
+		if vmi.Spec.Domain.Memory.MaxMemory == nil {
+			vmi.Spec.Domain.Memory.MaxMemory = c.clusterConfig.GetMaximumMemory()
+		}
+
+		if vmi.Spec.Domain.Memory.MaxMemory == nil {
+			vmi.Spec.Domain.Memory.MaxMemory = resource.NewQuantity(vmi.Spec.Domain.Memory.Guest.Value()*maxMemoryRatio, vmi.Spec.Domain.Memory.Guest.Format)
+		}
 	}
 }

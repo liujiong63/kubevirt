@@ -18,6 +18,9 @@
 #
 set -e
 
+GO_PROXY="https://goproxy.cn,direct"
+go env -w GOPROXY=${GO_PROXY}
+
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     source hack/common.sh
     source hack/config.sh

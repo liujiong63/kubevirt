@@ -677,3 +677,13 @@ func (_m *MockVirDomain) SetLaunchSecurityState(params *libvirt.DomainLaunchSecu
 func (_mr *_MockVirDomainRecorder) SetLaunchSecurityState(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetLaunchSecurityState", arg0, arg1)
 }
+
+func (_m *MockVirDomain) SetMemoryFlags(memory uint64, flags libvirt.DomainMemoryModFlags) error {
+	ret := _m.ctrl.Call(_m, "SetMemoryFlags", memory, flags)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockVirDomainRecorder) SetMemoryFlags(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMemoryFlags", arg0, arg1)
+}

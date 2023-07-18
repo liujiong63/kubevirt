@@ -157,6 +157,7 @@ func ValidateVirtualMachineInstanceSpec(field *k8sfield.Path, spec *v1.VirtualMa
 	causes = append(causes, validateCPUIsolatorThread(field, spec)...)
 	causes = append(causes, validateCPUFeaturePolicies(field, spec)...)
 	causes = append(causes, validateCPUHotplug(field, spec)...)
+	causes = append(causes, validateMemoryHotplug(field, spec)...)
 	causes = append(causes, validateStartStrategy(field, spec)...)
 	causes = append(causes, validateRealtime(field, spec, !root)...)
 	causes = append(causes, validateSpecAffinity(field, spec)...)
@@ -2698,6 +2699,19 @@ func validateCPUHotplug(field *k8sfield.Path, spec *v1.VirtualMachineInstanceSpe
 				Type:    metav1.CauseTypeFieldValueInvalid,
 				Message: fmt.Sprintf("Number of sockets in CPU topology is greater than the maximum sockets allowed"),
 				Field:   field.Child("domain", "cpu", "sockets").String(),
+			})
+		}
+	}
+	return causes
+}
+
+func validateMemoryHotplug(field *k8sfield.Path, spec *v1.VirtualMachineInstanceSpec) (causes []metav1.StatusCause) {
+	if spec.Domain.Memory != nil && spec.Domain.Memory.Guest != nil && spec.Domain.Memory.MaxMemory != nil {
+		if spec.Domain.Memory.Guest.Value() > spec.Domain.Memory.MaxMemory.Value() {
+			causes = append(causes, metav1.StatusCause{
+				Type:    metav1.CauseTypeFieldValueInvalid,
+				Message: fmt.Sprintf("Memory is greater than the maximum memory allowed"),
+				Field:   field.Child("domain", "memory", "guest").String(),
 			})
 		}
 	}
